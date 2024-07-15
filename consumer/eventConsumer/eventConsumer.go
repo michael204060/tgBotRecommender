@@ -40,12 +40,6 @@ func (cons Consumer) Start() error {
 	}
 }
 
-/*
-1. Потеря событий: ретраи, возвращение в хранилище, фоллбэк, подтверждение
-2.обработка всей пачки: останавливаться после первой ошибки,счётчик ошибок
-3. параллельная обработка
-sync.WaitGroup{}
-*/
 func (cons *Consumer) handleEvents(events []events.Event) error {
 	for _, event := range events {
 		log.Printf("received new event: %s", event.Text)

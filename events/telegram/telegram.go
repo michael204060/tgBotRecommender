@@ -2,11 +2,11 @@ package telegram
 
 import (
 	"errors"
+	"log"
 	"tgBotRecommender/clients/tgClient"
 	"tgBotRecommender/events"
 	"tgBotRecommender/lib/e"
 	"tgBotRecommender/storage"
-	"tgBotRecommender/storage/files"
 )
 
 var (
@@ -23,11 +23,10 @@ type Processor struct {
 }
 
 type Meta struct {
-	ChatID   int
-	Username string
+	ChatID int
 }
 
-func New(client *tgClient.Client, storage files.Storage) *Processor {
+func New(client *tgClient.Client, storage storage.Storage) *Processor {
 	return &Processor{
 		tg:      client,
 		storage: storage,
@@ -37,7 +36,7 @@ func New(client *tgClient.Client, storage files.Storage) *Processor {
 func (proces *Processor) Fetch(limit int) ([]events.Event, error) {
 	updates, err := proces.tg.Updates(proces.offset, limit)
 	if err != nil {
-		return nil, e.Wrap("enable to get event from tgClient", err)
+		return nil, e.Wrap("unable to get event from tgClient", err)
 	}
 
 	if len(updates) == 0 {
@@ -50,7 +49,9 @@ func (proces *Processor) Fetch(limit int) ([]events.Event, error) {
 		res = append(res, event(upd))
 	}
 
-	proces.offset = updates[len(updates)-1].ID + 1
+	// Update the offset to the ID of the last update fetched
+	proces.offset = updates[len(updates)-1].UpdateID + 1
+	log.Printf("Updated offset to: %d", proces.offset) // Добавлено логирование
 	return res, nil
 }
 
@@ -69,7 +70,7 @@ func (proces *Processor) processMessage(event events.Event) error {
 		return e.Wrap(ErrProcessMsg, err)
 	}
 
-	if err := proces.doCmd(event.Text, meta.ChatID, meta.Username); err != nil {
+	if err := proces.doCmd(event.Text, meta.ChatID); err != nil {
 		return e.Wrap(ErrProcessMsg, err)
 	}
 	return nil
@@ -78,7 +79,7 @@ func (proces *Processor) processMessage(event events.Event) error {
 func meta(event events.Event) (Meta, error) {
 	result, ok := event.Meta.(Meta)
 	if !ok {
-		return Meta{}, e.Wrap("cannot identify meta", errUnknownEventType)
+		return Meta{}, e.Wrap("cannot identify meta", errUnknownMetaType)
 	}
 	return result, nil
 }
@@ -90,10 +91,9 @@ func event(upd tgClient.Update) events.Event {
 		Text: fetchText(upd),
 	}
 
-	if updType == events.Message {
+	if updType == events.Message && upd.Message != nil {
 		res.Meta = Meta{
-			ChatID:   upd.Message.Chat.ID,
-			Username: fetchText(upd),
+			ChatID: upd.Message.Chat.ID,
 		}
 	}
 
@@ -102,15 +102,13 @@ func event(upd tgClient.Update) events.Event {
 
 func fetchText(upd tgClient.Update) string {
 	if upd.Message != nil {
-
-		return ""
+		return upd.Message.Text
 	}
-	return upd.Message.Text
+	return ""
 }
 
 func fetchType(upd tgClient.Update) events.Type {
 	if upd.Message == nil {
-
 		return events.Unknown
 	}
 	return events.Message

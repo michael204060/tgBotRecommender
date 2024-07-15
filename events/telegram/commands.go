@@ -16,19 +16,19 @@ const (
 	StartCmd = "/start"
 )
 
-func (proces *Processor) doCmd(text string, chatID int, username string) error {
+func (proces *Processor) doCmd(text string, chatID int) error {
 	text = strings.TrimSpace(text)
 
-	log.Printf("got command: %s from %s", text, username)
+	log.Printf("got command: %s from %d", text, chatID)
 
 	if isAddCmd(text) {
-		return proces.savePage(chatID, text, username)
+		return proces.savePage(chatID, text)
 		//TODO: AddPage()
 	}
 
 	switch text {
 	case RndCmd:
-		return proces.sendRandom(chatID, username)
+		return proces.sendRandom(chatID)
 	case HelpCmd:
 		return proces.sendHelp(chatID)
 	case StartCmd:
@@ -39,13 +39,13 @@ func (proces *Processor) doCmd(text string, chatID int, username string) error {
 	}
 }
 
-func (proces *Processor) savePage(chatID int, pageURL string, username string) (err error) {
+func (proces *Processor) savePage(chatID int, pageURL string) (err error) {
 	defer func() { err = e.WrapIfError("Impossible to execute command of saving page", err) }()
 
 	sendMsg := NewMessageSendler(chatID, proces.tg)
 	page := &storage.Page{
-		Url:      pageURL,
-		UserName: username,
+		Url:    pageURL,
+		UserID: chatID,
 	}
 
 	isExists, err := proces.storage.IsExist(page)
@@ -67,10 +67,10 @@ func (proces *Processor) savePage(chatID int, pageURL string, username string) (
 	return nil
 }
 
-func (proces *Processor) sendRandom(chatID int, username string) (err error) {
+func (proces *Processor) sendRandom(chatID int) (err error) {
 	defer func() { err = e.WrapIfError("Impossible to execute random command: fail to send random ", err) }()
 
-	page, err := proces.storage.PickRandom(username)
+	page, err := proces.storage.PickRandom(chatID)
 	if err != nil && !errors.Is(err, storage.ErrNoSavedPages) {
 		return err
 	}

@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"log"
-	"tgBotRecommender/clients/tgClient"
+	tgClient "tgBotRecommender/clients/tgClient"
 	"tgBotRecommender/consumer/eventConsumer"
 	"tgBotRecommender/events/telegram"
 	"tgBotRecommender/storage/files"
@@ -11,7 +11,7 @@ import (
 
 const (
 	tgBotHost   = "api.telegram.org"
-	storagePath = "storage"
+	storagePath = "files_storage"
 	batchSize   = 100
 )
 

@@ -5,12 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"tgBotRecommender/lib/e"
 )
 
 type Storage interface {
 	Save(page *Page) error
-	PickRandom(userName string) (page *Page, err error)
+	PickRandom(userName int) (page *Page, err error)
 	Remove(page *Page) error
 	IsExist(page *Page) (bool, error)
 }
@@ -18,8 +19,8 @@ type Storage interface {
 var ErrNoSavedPages = errors.New("there is not saved pages")
 
 type Page struct {
-	Url      string
-	UserName string
+	Url    string
+	UserID int
 }
 
 func (p Page) Hash() (string, error) {
@@ -29,7 +30,7 @@ func (p Page) Hash() (string, error) {
 		return "", e.Wrap("impossible to calculate hash", err)
 	}
 
-	if _, err := io.WriteString(hash, p.UserName); err != nil {
+	if _, err := io.WriteString(hash, strconv.Itoa(p.UserID)); err != nil {
 		return "", e.Wrap("impossible to calculate hash", err)
 	}
 

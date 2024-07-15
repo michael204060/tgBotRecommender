@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"strconv"
 	"tgBotRecommender/lib/e"
 	"tgBotRecommender/storage"
 	"time"
@@ -18,48 +19,44 @@ type Storage struct {
 	basePath string
 }
 
-func (stor Storage) IsExist(page *storage.Page) (bool, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
 func NewStorage(basePath string) Storage {
 	return Storage{basePath: basePath}
 }
 
-func (stor Storage) Save(page *storage.Page) (err error) {
-	defer func() { err = e.Wrap("cannot save page", err) }()
-
-	fPath := filepath.Join(stor.basePath, page.UserName)
-
-	if err = os.MkdirAll(fPath, defaultPerm); err != nil {
-		return err
-	}
-
-	fName, err := fileName(page)
-	if err != nil {
-		return err
-	}
-
-	fPath = filepath.Join(fPath, fName)
-
-	file, err := os.Create(fPath)
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = file.Close(); err = os.Remove(fPath) }()
-
-	if err := gob.NewEncoder(file).Encode(page); nil != err {
-		return err
-	}
-	return nil
-}
+//func (stor Storage) Save(page *storage.Page) (err error) {
+//	defer func() { err = e.Wrap("cannot save page", err) }()
+//
+//	fPath := filepath.Join(stor.basePath, strconv.Itoa(page.UserID))
+//	fmt.Print(stor.basePath)
+//
+//	if err = os.MkdirAll(fPath, defaultPerm); err != nil {
+//		return err
+//	}
+//
+//	fName, err := fileName(page)
+//	if err != nil {
+//		return err
+//	}
+//
+//	fPath = filepath.Join(fPath, fName)
+//
+//	file, err := os.Create(fPath)
+//	if err != nil {
+//		return err
+//	}
+//
+//	defer func() { _ = file.Close(); err = os.Remove(fPath) }()
+//
+//	if err := gob.NewEncoder(file).Encode(page); nil != err {
+//		return err
+//	}
+//	return nil
+//}
 
 //goland:noinspection ALL
-func (stor Storage) PickRandom(userName string) (page *storage.Page, err error) {
+func (stor Storage) PickRandom(userName int) (page *storage.Page, err error) {
 	defer func() { err = e.WrapIfError("cannot pick random page", err) }()
-	path := filepath.Join(stor.basePath, userName)
+	path := filepath.Join(stor.basePath, strconv.Itoa(userName))
 
 	files, err := os.ReadDir(path)
 	if err != nil {
@@ -84,7 +81,7 @@ func (stor Storage) Remove(p *storage.Page) error {
 	if err != nil {
 		return e.Wrap("removing is impossible", err)
 	}
-	path := filepath.Join(stor.basePath, p.UserName, fileName)
+	path := filepath.Join(stor.basePath, strconv.Itoa(p.UserID), fileName)
 
 	if err := os.Remove(path); nil != err {
 		msg := fmt.Sprintf("removing file %s is impossible", path)
@@ -94,14 +91,80 @@ func (stor Storage) Remove(p *storage.Page) error {
 	return nil
 }
 
-func (stor Storage) IsExists(p *storage.Page) (bool, error) {
+//	func (stor Storage) IsExist(p *storage.Page) (bool, error) {
+//		fileName, err := fileName(p)
+//		if err != nil {
+//			return false, e.Wrap("impossible to check if file exists", err)
+//		}
+//		path := filepath.Join(stor.basePath, strconv.Itoa(p.UserID), fileName)
+//
+//		switch _, err = os.Stat(path); {
+//		case errors.Is(err, os.ErrNotExist):
+//			return false, nil
+//		case err != nil:
+//			msg := fmt.Sprintf("checking if file %s exists is impossible", path)
+//			return false, e.Wrap(msg, err)
+//		}
+//
+//		return true, nil
+//	}
+func (stor Storage) Save(page *storage.Page) (err error) {
+	if page == nil {
+		return errors.New("page is nil")
+	}
+
+	defer func() {
+		if err != nil {
+			err = e.Wrap("cannot save page", err)
+		}
+	}()
+
+	fPath := filepath.Join(stor.basePath, strconv.Itoa(page.UserID))
+
+	if err = os.MkdirAll(fPath, defaultPerm); err != nil {
+		return err
+	}
+
+	fName, err := fileName(page)
+	if err != nil {
+		return err
+	}
+
+	fPath = filepath.Join(fPath, fName)
+
+	file, err := os.Create(fPath)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if err != nil {
+			_ = os.Remove(fPath)
+		}
+		_ = file.Close()
+	}()
+
+	if err := gob.NewEncoder(file).Encode(page); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (stor Storage) IsExist(p *storage.Page) (bool, error) {
+	if p == nil {
+		return false, errors.New("page is nil")
+	}
+
 	fileName, err := fileName(p)
 	if err != nil {
 		return false, e.Wrap("impossible to check if file exists", err)
 	}
-	path := filepath.Join(stor.basePath, p.UserName, fileName)
 
-	switch _, err = os.Stat(path); {
+	path := filepath.Join(stor.basePath, strconv.Itoa(p.UserID), fileName)
+
+	_, err = os.Stat(path)
+	switch {
 	case errors.Is(err, os.ErrNotExist):
 		return false, nil
 	case err != nil:
