@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"log"
-	tgClient "tgBotRecommender/clients/tgClient"
+	"tgBotRecommender/clients/tgClient"
 	"tgBotRecommender/consumer/eventConsumer"
 	"tgBotRecommender/events/telegram"
 	"tgBotRecommender/storage/files"
