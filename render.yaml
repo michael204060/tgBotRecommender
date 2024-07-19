@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: tgBotRecommender
+    env: docker
+    dockerfilePath: Dockerfile
+    buildCommand: "go build -o tgBotRecommender ./cmd/tgBotRecommender"
+    startCommand: "./tgBotRecommender -tg-bot-token '7047428650:AAGnJCnA_RUZJ0TFntTYKqVYApD0vuQKNls'"
