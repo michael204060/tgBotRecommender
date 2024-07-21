@@ -11,6 +11,9 @@ RUN go mod download
 # Копируем все файлы проекта в рабочую директорию контейнера
 COPY . .
 
+# Создание папки files_storage
+RUN mkdir files_storage
+
 # Сборка приложения
 RUN go build -o tgBotRecommender main.go
 
