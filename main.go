@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"log"
 	"tgBotRecommender/clients/tgClient"
 	"tgBotRecommender/consumer/eventConsumer"
@@ -13,11 +12,12 @@ const (
 	tgBotHost   = "api.telegram.org"
 	storagePath = "files_storage"
 	batchSize   = 100
+	tgBotToken  = "7047428650:AAGnJCnA_RUZJ0TFntTYKqVYApD0vuQKNls"
 )
 
 func main() {
 	eventsProcessor := telegram.New(
-		tgClient.New(tgBotHost, mustToken()),
+		tgClient.New(tgBotHost, tgBotToken),
 		files.NewStorage(storagePath),
 	)
 
@@ -28,19 +28,4 @@ func main() {
 	if err := consumer.Start(); err != nil {
 		log.Fatal(err)
 	}
-
-}
-
-func mustToken() string {
-	token := flag.String("tg-bot-token",
-		"",
-		"provides access to tgClient bot")
-
-	flag.Parse()
-
-	if *token == "" {
-		log.Fatal("token is required")
-	}
-
-	return *token
 }

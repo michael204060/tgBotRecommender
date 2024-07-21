@@ -1,0 +1,16 @@
+{
+  "build": {
+    "dockerfilePath": "./Dockerfile"
+  },
+  "deployments": [
+    {
+      "name": "production",
+      "services": [
+        {
+          "name": "tgBotRecommender",
+          "source": "."
+        }
+      ]
+    }
+  ]
+}
