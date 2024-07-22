@@ -6,13 +6,13 @@ WORKDIR /app
 
 # Копируем go.mod и скачиваем зависимости
 COPY go.mod ./
-RUN go mod download
+RUN go mod tidy
 
 # Копируем все файлы проекта в рабочую директорию контейнера
 COPY . .
 
-# Создание папки files_storage
-RUN mkdir files_storage
+# Изменение прав доступа и создание папки files_storage
+RUN chmod +x /bin/mkdir && mkdir -p /app/files_storage
 
 # Сборка приложения
 RUN go build -o tgBotRecommender main.go
@@ -22,4 +22,4 @@ ENV PORT=8080
 EXPOSE $PORT
 
 # Указываем команду для запуска приложения
-CMD ["./tgBotRecommender", "-tg-bot-token", "7047428650:AAGnJCnA_RUZJ0TFntTYKqVYApD0vuQKNls"]
+CMD ["./tgBotRecommender", "-tg-bot-token", "YOUR_BOT_TOKEN_HERE"]
