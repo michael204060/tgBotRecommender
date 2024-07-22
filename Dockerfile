@@ -12,7 +12,7 @@ RUN go mod tidy
 COPY . .
 
 # Изменение прав доступа и создание папки files_storage
-RUN chmod +x /bin/mkdir && mkdir -p /app/files_storage
+RUN mkdir -p /app/files_storage && chmod -R 777 /app/files_storage
 
 # Сборка приложения
 RUN go build -o tgBotRecommender main.go
