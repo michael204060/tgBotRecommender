@@ -33,6 +33,6 @@ func (p Page) Hash() (string, error) {
 	if _, err := io.WriteString(hash, strconv.Itoa(p.UserID)); err != nil {
 		return "", e.Wrap("impossible to calculate hash", err)
 	}
-
+	//strconv.Atoi()
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
