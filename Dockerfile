@@ -4,18 +4,17 @@ FROM golang:1.22
 # Устанавливаем рабочую директорию внутри контейнера
 WORKDIR /app
 
-# Копируем go.mod и скачиваем зависимости
-COPY go.mod ./
-RUN go mod tidy
+# Копируем go.mod и go.sum и скачиваем зависимости
+COPY go.mod go.sum ./
+RUN go mod download
 
 # Копируем все файлы проекта в рабочую директорию контейнера
 COPY . .
 
-# Изменение прав доступа и создание папки files_storage
-RUN mkdir -p /app/files_storage && chmod -R 777 /app/files_storage
-
-# Сборка приложения
-RUN go build -o tgBotRecommender main.go
+# Создаем папку files_storage, изменяем права доступа и выполняем сборку приложения
+RUN mkdir -p /app/files_storage && \
+    chmod -R 777 /app/files_storage && \
+    go build -o tgBotRecommender main.go
 
 # Устанавливаем переменную окружения для порта
 ENV PORT=8080
