@@ -70,9 +70,16 @@ func (proces *Processor) processMessage(event events.Event) error {
 		return e.Wrap(ErrProcessMsg, err)
 	}
 
-	if err := proces.doCmd(event.Text, meta.ChatID); err != nil {
+	err, info := proces.doCmd(event.Text, meta.ChatID)
+	if err != nil {
 		return e.Wrap(ErrProcessMsg, err)
 	}
+	if info == events.Content {
+		if err := proces.setPriority(event.Text, meta.ChatID); err != nil {
+			return e.Wrap(ErrProcessMsg, err)
+		}
+	}
+
 	return nil
 }
 

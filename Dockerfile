@@ -1,12 +1,12 @@
 # Используем официальный образ Golang
-FROM golang:1.22
+FROM golang:1.23.0
 
 # Устанавливаем рабочую директорию внутри контейнера
 WORKDIR /app
 
 # Копируем go.mod и go.sum и скачиваем зависимости
 COPY go.mod ./
-RUN go mod download
+RUN go mod tidy
 
 # Копируем все файлы проекта в рабочую директорию контейнера
 COPY . .

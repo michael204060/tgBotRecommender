@@ -3,8 +3,10 @@ package telegram
 import (
 	"errors"
 	"log"
+	"strconv"
 	"strings"
 	"tgBotRecommender/clients/tgClient"
+	"tgBotRecommender/events"
 	"tgBotRecommender/lib/e"
 	"tgBotRecommender/storage"
 )
@@ -15,38 +17,52 @@ const (
 	StartCmd = "/start"
 )
 
-func (proces *Processor) doCmd(text string, chatID int) error {
+func (proces *Processor) doCmd(text string, chatID int) (error, int) {
 	text = strings.TrimSpace(text)
 	log.Printf("got command: %s from %d", text, chatID)
+	result := events.Command
+
 	switch text {
 	case RndCmd:
-		return proces.sendRandom(chatID)
+
+		return proces.sendRandom(chatID), result
 	case HelpCmd:
-		return proces.sendHelp(chatID)
+		return proces.sendHelp(chatID), result
 	case StartCmd:
-		return proces.sendHello(chatID)
+		return proces.sendHello(chatID), result
 	default:
 		{
+			result = events.Content
 			err := proces.savePage(chatID, text)
 			if err != nil {
-				return err
+				return err, result
 			}
-			err = proces.setPriority(chatID)
-			if err != nil {
-				return err
-			}
-			//switch text {
-			//
-			//}
 		}
 	}
-	return nil
+	return nil, result
 }
 
-func (proces *Processor) setPriority(chatID int) (err error) {
+func (proces *Processor) setPriority(text string, chatID int) (err error) {
 	if err := proces.tg.SendMessage(chatID, msgSetPriority); err != nil {
 		return err
 	}
+	text = strings.TrimSpace(text)
+	log.Printf("got number: %s from %d", text, chatID)
+	var priorityOrder []int
+	number, err := strconv.Atoi(text)
+	if err != nil {
+		return e.Wrap(notANumber, err)
+	}
+	priorityOrder = append(priorityOrder, number)
+	//if err := proces.tg.SendMessage(chatID, strconv.Itoa(number)); err != nil {
+	//	return err
+	//}
+
+	//for _, value := range priorityOrder {
+	//	if err := proces.tg.SendMessage(chatID, strconv.Itoa(value)); err != nil {
+	//		return err
+	//	}
+	//}
 	return nil
 }
 

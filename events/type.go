@@ -20,3 +20,8 @@ const (
 	Unknown Type = iota
 	Message
 )
+
+const (
+	Command = iota
+	Content
+)

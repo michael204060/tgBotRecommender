@@ -23,37 +23,6 @@ func NewStorage(basePath string) Storage {
 	return Storage{basePath: basePath}
 }
 
-//func (stor Storage) Save(page *storage.Page) (err error) {
-//	defer func() { err = e.Wrap("cannot save page", err) }()
-//
-//	fPath := filepath.Join(stor.basePath, strconv.Itoa(page.UserID))
-//	fmt.Print(stor.basePath)
-//
-//	if err = os.MkdirAll(fPath, defaultPerm); err != nil {
-//		return err
-//	}
-//
-//	fName, err := fileName(page)
-//	if err != nil {
-//		return err
-//	}
-//
-//	fPath = filepath.Join(fPath, fName)
-//
-//	file, err := os.Create(fPath)
-//	if err != nil {
-//		return err
-//	}
-//
-//	defer func() { _ = file.Close(); err = os.Remove(fPath) }()
-//
-//	if err := gob.NewEncoder(file).Encode(page); nil != err {
-//		return err
-//	}
-//	return nil
-//}
-
-//goland:noinspection ALL
 func (stor Storage) PickRandom(userName int) (page *storage.Page, err error) {
 	defer func() { err = e.WrapIfError("cannot pick random page", err) }()
 	path := filepath.Join(stor.basePath, strconv.Itoa(userName))
@@ -72,7 +41,7 @@ func (stor Storage) PickRandom(userName int) (page *storage.Page, err error) {
 	n := rand.Intn(len(files))
 
 	file := files[n]
-	//open decoder
+
 	return stor.decodePage(filepath.Join(path, file.Name()))
 }
 
@@ -91,23 +60,6 @@ func (stor Storage) Remove(p *storage.Page) error {
 	return nil
 }
 
-//	func (stor Storage) IsExist(p *storage.Page) (bool, error) {
-//		fileName, err := fileName(p)
-//		if err != nil {
-//			return false, e.Wrap("impossible to check if file exists", err)
-//		}
-//		path := filepath.Join(stor.basePath, strconv.Itoa(p.UserID), fileName)
-//
-//		switch _, err = os.Stat(path); {
-//		case errors.Is(err, os.ErrNotExist):
-//			return false, nil
-//		case err != nil:
-//			msg := fmt.Sprintf("checking if file %s exists is impossible", path)
-//			return false, e.Wrap(msg, err)
-//		}
-//
-//		return true, nil
-//	}
 func (stor Storage) Save(page *storage.Page) (err error) {
 	if page == nil {
 		return errors.New("page is nil")
