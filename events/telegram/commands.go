@@ -171,7 +171,7 @@ func (proces *Processor) sendRandom(chatID int) (err error) {
 		if errors.Is(err, storage.ErrNoSavedPages) {
 			return proces.tg.SendMessage(chatID, msgExists)
 		} else {
-			proces.tg.SendMessage(chatID, msgNoSavedPage)
+			proces.tg.SendMessage(chatID, msgNoSavePageSonia)
 		}
 	default:
 		if errors.Is(err, storage.ErrNoSavedPages) {
