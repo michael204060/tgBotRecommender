@@ -110,7 +110,7 @@ func (proces *Processor) savePage(chatID int, message string) (err error) {
 	switch chatID {
 	case MikeId:
 		if isExists {
-			return sendMsg(msgAlreadyExists)
+			return sendMsg(msgAlreadyExistsMike)
 		}
 	case SoniaId:
 		if isExists {

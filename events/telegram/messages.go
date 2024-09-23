@@ -20,6 +20,7 @@ const (
 	msgSetPrioritySonia = "Выбери пожалуйста приоритет сообщения😉)"
 
 	msgAlreadyExists      = "Heta paviepamlieńnie ŭžo zahavanaje🙂"
+	msgAlreadyExistsMike  = "Сохранено"
 	msgAlreadyExistsSonia = "Это сообщение уже сохранено🙂"
 	notANumber            = "Heta nia lik. Kali łaska, vybiarycie peŭny numar pryjavytetu"
 	notANumberSonia       = "Это не число. Пожалуйста введи число)"
