@@ -80,7 +80,7 @@ func (proces *Processor) processMessage(event events.Event) error {
 	//		return e.Wrap(ErrProcessMsg, err)
 	//	}
 	//}
-	fmt.Print(info)
+	fmt.Println(info)
 	return nil
 }
 
