@@ -20,5 +20,5 @@ RUN mkdir -p /app/files_storage && \
 ENV PORT=8080
 EXPOSE $PORT
 
-# Указываем команду для запуска приложения
-CMD ["./tgBotRecommender", "-tg-bot-token", "YOUR_BOT_TOKEN_HERE"]
+# Указываем команду для запуска приложени
+CMD ["./tgBotRecommender", "-tg-bot-token", "7047428650:AAGnJCnA_RUZJ0TFntTYKqVYApD0vuQKNls"]
