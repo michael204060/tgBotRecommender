@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"tgBotRecommender/clients/tgClient"
 	"tgBotRecommender/events"
@@ -74,12 +75,12 @@ func (proces *Processor) processMessage(event events.Event) error {
 	if err != nil {
 		return e.Wrap(ErrProcessMsg, err)
 	}
-	if info == events.Content {
-		if err := proces.setPriority(event.Text, meta.ChatID); err != nil {
-			return e.Wrap(ErrProcessMsg, err)
-		}
-	}
-
+	//if info == events.Content {
+	//	if err := proces.setPriority(event.Text, meta.ChatID); err != nil {
+	//		return e.Wrap(ErrProcessMsg, err)
+	//	}
+	//}
+	fmt.Println(info)
 	return nil
 }
 
