@@ -21,4 +21,4 @@ ENV PORT=8080
 EXPOSE $PORT
 
 # Указываем команду для запуска приложения
-CMD ["./tgBotRecommender", "-tg-bot-token", "$TG_BOT_TOKEN"]
+CMD ["./tgBotRecommender", "-tg-bot-token", "7047428650:AAGnJCnA_RUZJ0TFntTYKqVYApD0vuQKNls"]
