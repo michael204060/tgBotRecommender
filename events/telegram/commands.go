@@ -33,7 +33,7 @@ func (proces *Processor) doCmd(text string, chatID int) (error, int) {
 	default:
 		{
 			result = events.Content
-			err := proces.savePage(chatID, text)
+			err := proces.saveMessage(chatID, text)
 			if err != nil {
 				return err, result
 			}
@@ -66,21 +66,21 @@ func (proces *Processor) setPriority(text string, chatID int) (err error) {
 	return nil
 }
 
-func (proces *Processor) savePage(chatID int, message string) (err error) {
-	defer func() { err = e.WrapIfError("Impossible to execute command of saving page", err) }()
+func (proces *Processor) saveMessage(chatID int, message string) (err error) {
+	defer func() { err = e.WrapIfError("Impossible to execute command of saving message", err) }()
 	sendMsg := NewMessageSendler(chatID, proces.tg)
-	page := &storage.Page{
-		Url:    message,
-		UserID: chatID,
+	messageInfo := &storage.Message{
+		Content: message,
+		UserID:  chatID,
 	}
-	isExists, err := proces.storage.IsExist(page)
+	isExists, err := proces.storage.IsExist(messageInfo)
 	if err != nil {
 		return err
 	}
 	if isExists {
 		return sendMsg(msgAlreadyExists)
 	}
-	if err := proces.storage.Save(page); err != nil {
+	if err := proces.storage.Save(messageInfo); err != nil {
 		return err
 	}
 	if err := proces.tg.SendMessage(chatID, msgSaved); err != nil {
@@ -91,17 +91,17 @@ func (proces *Processor) savePage(chatID int, message string) (err error) {
 
 func (proces *Processor) sendRandom(chatID int) (err error) {
 	defer func() { err = e.WrapIfError("Impossible to execute random command: fail to send random ", err) }()
-	page, err := proces.storage.PickRandom(chatID)
-	if err != nil && !errors.Is(err, storage.ErrNoSavedPages) {
+	message, err := proces.storage.PickRandom(chatID)
+	if err != nil && !errors.Is(err, storage.ErrNoSavedMessages) {
 		return err
 	}
-	if errors.Is(err, storage.ErrNoSavedPages) {
-		return proces.tg.SendMessage(chatID, msgNoSavedPage)
+	if errors.Is(err, storage.ErrNoSavedMessages) {
+		return proces.tg.SendMessage(chatID, msgNoSavedMessage)
 	}
-	if err := proces.tg.SendMessage(chatID, page.Url); err != nil {
+	if err := proces.tg.SendMessage(chatID, message.Content); err != nil {
 		return err
 	}
-	return proces.storage.Remove(page)
+	return proces.storage.Remove(message)
 }
 
 func (proces *Processor) sendHelp(chatID int) error {

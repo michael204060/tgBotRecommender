@@ -23,7 +23,7 @@ func NewStorage(basePath string) Storage {
 	return Storage{basePath: basePath}
 }
 
-func (stor Storage) PickRandom(userName int) (page *storage.Page, err error) {
+func (stor Storage) PickRandom(userName int) (page *storage.Message, err error) {
 	defer func() { err = e.WrapIfError("cannot pick random page", err) }()
 	path := filepath.Join(stor.basePath, strconv.Itoa(userName))
 
@@ -34,7 +34,7 @@ func (stor Storage) PickRandom(userName int) (page *storage.Page, err error) {
 	}
 
 	if len(files) == 0 {
-		return nil, storage.ErrNoSavedPages
+		return nil, storage.ErrNoSavedMessages
 	}
 
 	rand.Seed(time.Now().UnixNano())
@@ -42,42 +42,42 @@ func (stor Storage) PickRandom(userName int) (page *storage.Page, err error) {
 
 	file := files[n]
 
-	return stor.decodePage(filepath.Join(path, file.Name()))
+	return stor.decodeMessage(filepath.Join(path, file.Name()))
 }
 
-func (stor Storage) Remove(p *storage.Page) error {
-	fileName, err := fileName(p)
+func (stor Storage) Remove(message *storage.Message) error {
+	fileName, err := fileName(message)
 	if err != nil {
 		return e.Wrap("removing is impossible", err)
 	}
-	path := filepath.Join(stor.basePath, strconv.Itoa(p.UserID), fileName)
+	path := filepath.Join(stor.basePath, strconv.Itoa(message.UserID), fileName)
 
 	if err := os.Remove(path); nil != err {
-		msg := fmt.Sprintf("removing file %s is impossible", path)
+		warning := fmt.Sprintf("removing file %s is impossible", path)
 
-		return e.Wrap(msg, err)
+		return e.Wrap(warning, err)
 	}
 	return nil
 }
 
-func (stor Storage) Save(page *storage.Page) (err error) {
-	if page == nil {
-		return errors.New("page is nil")
+func (stor Storage) Save(message *storage.Message) (err error) {
+	if message == nil {
+		return errors.New("message is nil")
 	}
 
 	defer func() {
 		if err != nil {
-			err = e.Wrap("cannot save page", err)
+			err = e.Wrap("cannot save message", err)
 		}
 	}()
 
-	fPath := filepath.Join(stor.basePath, strconv.Itoa(page.UserID))
+	fPath := filepath.Join(stor.basePath, strconv.Itoa(message.UserID))
 
 	if err = os.MkdirAll(fPath, defaultPerm); err != nil {
 		return err
 	}
 
-	fName, err := fileName(page)
+	fName, err := fileName(message)
 	if err != nil {
 		return err
 	}
@@ -96,45 +96,45 @@ func (stor Storage) Save(page *storage.Page) (err error) {
 		_ = file.Close()
 	}()
 
-	if err := gob.NewEncoder(file).Encode(page); err != nil {
+	if err := gob.NewEncoder(file).Encode(message); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (stor Storage) IsExist(p *storage.Page) (bool, error) {
-	if p == nil {
+func (stor Storage) IsExist(message *storage.Message) (bool, error) {
+	if message == nil {
 		return false, errors.New("page is nil")
 	}
 
-	fileName, err := fileName(p)
+	fileName, err := fileName(message)
 	if err != nil {
 		return false, e.Wrap("impossible to check if file exists", err)
 	}
 
-	path := filepath.Join(stor.basePath, strconv.Itoa(p.UserID), fileName)
+	path := filepath.Join(stor.basePath, strconv.Itoa(message.UserID), fileName)
 
 	_, err = os.Stat(path)
 	switch {
 	case errors.Is(err, os.ErrNotExist):
 		return false, nil
 	case err != nil:
-		msg := fmt.Sprintf("checking if file %s exists is impossible", path)
-		return false, e.Wrap(msg, err)
+		warning := fmt.Sprintf("checking if file %s exists is impossible", path)
+		return false, e.Wrap(warning, err)
 	}
 
 	return true, nil
 }
 
-func (stor Storage) decodePage(filePath string) (page *storage.Page, err error) {
+func (stor Storage) decodeMessage(filePath string) (message *storage.Message, err error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, e.Wrap("decoding is enable", err)
 	}
 	defer func() { _ = file.Close() }()
 
-	var p storage.Page
+	var p storage.Message
 
 	if err := gob.NewDecoder(file).Decode(&p); nil != err {
 		return nil, e.Wrap("decoding is enable", err)
@@ -142,6 +142,6 @@ func (stor Storage) decodePage(filePath string) (page *storage.Page, err error) 
 	return &p, nil
 }
 
-func fileName(p *storage.Page) (string, error) {
+func fileName(p *storage.Message) (string, error) {
 	return p.Hash()
 }
