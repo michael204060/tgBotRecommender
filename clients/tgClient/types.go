@@ -6,7 +6,7 @@ type UpdatesResponse struct {
 }
 
 type Update struct {
-	UpdateID int              `json:"update_id"` // Изменено имя поля на "update_id"
+	UpdateID int              `json:"update_id"`
 	Message  *IncomingMessage `json:"message"`
 }
 

@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"database/sql"
 	"errors"
 	"log"
 	"strconv"
@@ -9,6 +10,7 @@ import (
 	"tgBotRecommender/events"
 	"tgBotRecommender/lib/e"
 	"tgBotRecommender/storage"
+	"tgBotRecommender/storage/database"
 )
 
 const (
@@ -67,20 +69,24 @@ func (proces *Processor) setPriority(text string, chatID int) (err error) {
 }
 
 func (proces *Processor) saveMessage(chatID int, message string) (err error) {
+	db := database.HadleConn(database.ConnStr)
+	defer func(db *sql.DB) {
+		_ = db.Close()
+	}(db)
 	defer func() { err = e.WrapIfError("Impossible to execute command of saving message", err) }()
 	sendMsg := NewMessageSendler(chatID, proces.tg)
 	messageInfo := &storage.Message{
 		Content: message,
 		UserID:  chatID,
 	}
-	isExists, err := proces.storage.IsExist(messageInfo)
+	isExists, err := proces.storage.IsExist(messageInfo, db)
 	if err != nil {
 		return err
 	}
 	if isExists {
 		return sendMsg(msgAlreadyExists)
 	}
-	if err := proces.storage.Save(messageInfo); err != nil {
+	if err := proces.storage.Save(messageInfo, db); err != nil {
 		return err
 	}
 	if err := proces.tg.SendMessage(chatID, msgSaved); err != nil {
@@ -91,17 +97,21 @@ func (proces *Processor) saveMessage(chatID int, message string) (err error) {
 
 func (proces *Processor) sendRandom(chatID int) (err error) {
 	defer func() { err = e.WrapIfError("Impossible to execute random command: fail to send random ", err) }()
-	message, err := proces.storage.PickRandom(chatID)
+	db := database.HadleConn(database.ConnStr)
+	defer func(db *sql.DB) {
+		_ = db.Close()
+	}(db)
+	message, err := proces.storage.PickRandom(chatID, db)
 	if err != nil && !errors.Is(err, storage.ErrNoSavedMessages) {
 		return err
 	}
 	if errors.Is(err, storage.ErrNoSavedMessages) {
 		return proces.tg.SendMessage(chatID, msgNoSavedMessage)
 	}
-	if err := proces.tg.SendMessage(chatID, message.Content); err != nil {
+	if err := proces.tg.SendMessage(chatID, message.Message.Content); err != nil {
 		return err
 	}
-	return proces.storage.Remove(message)
+	return proces.storage.Remove(message.Index, db)
 }
 
 func (proces *Processor) sendHelp(chatID int) error {

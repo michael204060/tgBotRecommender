@@ -1,19 +1,15 @@
 package storage
 
 import (
-	"crypto/sha1"
+	"database/sql"
 	"errors"
-	"fmt"
-	"io"
-	"strconv"
-	"tgBotRecommender/lib/e"
 )
 
 type Storage interface {
-	Save(message *Message) error
-	PickRandom(userName int) (message *Message, err error)
-	Remove(message *Message) error
-	IsExist(message *Message) (bool, error)
+	Save(message *Message, db *sql.DB) error
+	PickRandom(chatId int, db *sql.DB) (message *Dialogs, err error)
+	Remove(index int, db *sql.DB) error
+	IsExist(message *Message, db *sql.DB) (bool, error)
 }
 
 var ErrNoSavedMessages = errors.New("there is not saved messages")
@@ -23,16 +19,21 @@ type Message struct {
 	UserID  int
 }
 
-func (p Message) Hash() (string, error) {
-	hash := sha1.New()
-
-	if _, err := io.WriteString(hash, p.Content); err != nil {
-		return "", e.Wrap("impossible to calculate hash", err)
-	}
-
-	if _, err := io.WriteString(hash, strconv.Itoa(p.UserID)); err != nil {
-		return "", e.Wrap("impossible to calculate hash", err)
-	}
-	//strconv.Atoi()
-	return fmt.Sprintf("%x", hash.Sum(nil)), nil
+type Dialogs struct {
+	Index   int
+	Message Message
 }
+
+//func (p Message) Hash() (string, error) {
+//	hash := sha1.New()
+//
+//	if _, err := io.WriteString(hash, p.Content); err != nil {
+//		return "", e.Wrap("impossible to calculate hash", err)
+//	}
+//
+//	if _, err := io.WriteString(hash, strconv.Itoa(p.UserID)); err != nil {
+//		return "", e.Wrap("impossible to calculate hash", err)
+//	}
+//	//strconv.Atoi()
+//	return fmt.Sprintf("%x", hash.Sum(nil)), nil
+//}
