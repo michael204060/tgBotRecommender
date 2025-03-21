@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	errUnknownEventType = errors.New("Unknown event type")
-	errUnknownMetaType  = errors.New("Unknown meta type")
+	errUnknownEventType = errors.New("unknown event type")
+	errUnknownMetaType  = errors.New("unknown meta type")
 )
 
 const ErrProcessMsg = "failed to process message"

@@ -6,19 +6,19 @@ import (
 	"tgBotRecommender/clients/tgClient"
 	"tgBotRecommender/consumer/eventConsumer"
 	"tgBotRecommender/events/telegram"
-	"tgBotRecommender/storage/files"
+	"tgBotRecommender/storage/database"
 )
 
 const (
-	tgBotHost   = "api.telegram.org"
-	storagePath = "files_storage"
-	batchSize   = 10000
+	tgBotHost = "api.telegram.org"
+	batchSize = 10000
 )
 
 func main() {
 	eventsProcessor := telegram.New(
 		tgClient.New(tgBotHost, mustToken()),
-		files.NewStorage(storagePath),
+		//database.NewStorage(connStr), //>???
+		database.Storage{},
 	)
 
 	log.Print("Starting bot")
