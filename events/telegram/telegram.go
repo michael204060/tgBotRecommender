@@ -49,9 +49,8 @@ func (proces *Processor) Fetch(limit int) ([]events.Event, error) {
 		res = append(res, event(upd))
 	}
 
-	// Update the offset to the ID of the last update fetched
 	proces.offset = updates[len(updates)-1].UpdateID + 1
-	log.Printf("Updated offset to: %d", proces.offset) // Добавлено логирование
+	log.Printf("Updated offset to: %d", proces.offset)
 	return res, nil
 }
 

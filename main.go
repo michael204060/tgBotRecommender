@@ -18,7 +18,7 @@ const (
 func main() {
 	eventsProcessor := telegram.New(
 		tgClient.New(tgBotHost, mustToken()),
-		//database.NewStorage(connStr), //>???
+
 		database.Storage{},
 	)
 
@@ -33,12 +33,11 @@ func main() {
 }
 
 func mustToken() string {
-	// Сначала проверяем переменную окружения
+
 	if token := os.Getenv("TG_BOT_TOKEN"); token != "" {
 		return token
 	}
 
-	// Если нет в окружении, проверяем флаг
 	token := flag.String("tg-bot-token", "", "provides access to tgClient bot")
 	flag.Parse()
 

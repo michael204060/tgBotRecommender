@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	_ "embed"
 	"errors"
 	"fmt"
 	_ "github.com/lib/pq"
@@ -14,13 +15,6 @@ import (
 
 type Storage struct {
 }
-
-const createTableSQL = `
-CREATE TABLE IF NOT EXISTS dialogs (
-    index SERIAL PRIMARY KEY,
-    content VARCHAR(500),
-    sender INT NOT NULL
-);`
 
 func (stor Storage) PickRandom(chatId int, db *sql.DB) (message *storage.Dialogs, err error) {
 	tx, err := db.Begin()
@@ -52,6 +46,9 @@ func (stor Storage) PickRandom(chatId int, db *sql.DB) (message *storage.Dialogs
 	}, tx.Commit()
 }
 
+//go:embed init.sql
+var initSQL string
+
 func HandleConn() (*sql.DB, error) {
 	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		os.Getenv("POSTGRES_HOST"),
@@ -77,13 +74,12 @@ func HandleConn() (*sql.DB, error) {
 			continue
 		}
 
-		// Создаем таблицу
-		if _, err := db.Exec(createTableSQL); err != nil {
+		// Используем встроенный SQL
+		if _, err := db.Exec(initSQL); err != nil {
 			db.Close()
 			return nil, fmt.Errorf("failed to create table: %v", err)
 		}
 
-		// Настройки пула соединений
 		db.SetMaxOpenConns(10)
 		db.SetMaxIdleConns(5)
 		db.SetConnMaxLifetime(5 * time.Minute)
