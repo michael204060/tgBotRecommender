@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"log"
+	"os"
 	"tgBotRecommender/clients/tgClient"
 	"tgBotRecommender/consumer/eventConsumer"
 	"tgBotRecommender/events/telegram"
@@ -32,14 +33,17 @@ func main() {
 }
 
 func mustToken() string {
-	token := flag.String("tg-bot-token",
-		"",
-		"provides access to tgClient bot")
+	// Сначала проверяем переменную окружения
+	if token := os.Getenv("TG_BOT_TOKEN"); token != "" {
+		return token
+	}
 
+	// Если нет в окружении, проверяем флаг
+	token := flag.String("tg-bot-token", "", "provides access to tgClient bot")
 	flag.Parse()
 
 	if *token == "" {
-		log.Fatal("token is required")
+		log.Fatal("token is required (set TG_BOT_TOKEN env var or use --tg-bot-token flag)")
 	}
 
 	return *token

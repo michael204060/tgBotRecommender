@@ -1,24 +1,33 @@
-# Используем официальный образ Golang
-FROM golang:1.23.0
+# Базовый образ для сборки
+FROM golang:1.24-alpine AS builder
 
-# Устанавливаем рабочую директорию внутри контейнера
+# Установка зависимостей
+RUN apk add --no-cache git
+
+# Создание рабочей директории
 WORKDIR /app
 
-# Копируем go.mod и go.sum и скачиваем зависимости
-COPY go.mod ./
-RUN go mod tidy
+# Копирование файлов модулей
+COPY go.mod go.sum ./
+RUN go mod download
 
-# Копируем все файлы проекта в рабочую директорию контейнера
+# Копирование исходного кода
 COPY . .
 
-# Создаем папку files_storage, изменяем права доступа и выполняем сборку приложения
-RUN mkdir -p /app/files_storage && \
-    chmod -R 777 /app/files_storage && \
-    go build -o tgBotRecommender main.go
+# Сборка приложения
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/tgBotRecommender
 
-# Устанавливаем переменную окружения для порта
-ENV PORT=8080
-EXPOSE $PORT
+# Финальный образ
+FROM alpine:latest
 
-# Указываем команду для запуска приложения
-CMD ["./tgBotRecommender", "-tg-bot-token", "$TG_BOT_TOKEN"]
+# Установка зависимостей для работы с PostgreSQL
+RUN apk add --no-cache libc6-compat
+
+# Копирование бинарного файла из builder
+COPY --from=builder /app/tgBotRecommender /app/tgBotRecommender
+
+# Установка рабочей директории
+WORKDIR /app
+
+# Команда для запуска приложения
+CMD ["/app/tgBotRecommender"]

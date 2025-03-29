@@ -1,7 +1,6 @@
 package telegram
 
 import (
-	"database/sql"
 	"errors"
 	"log"
 	"strconv"
@@ -69,49 +68,57 @@ func (proces *Processor) setPriority(text string, chatID int) (err error) {
 }
 
 func (proces *Processor) saveMessage(chatID int, message string) (err error) {
-	db := database.HadleConn(database.ConnStr)
-	defer func(db *sql.DB) {
-		_ = db.Close()
-	}(db)
-	defer func() { err = e.WrapIfError("Impossible to execute command of saving message", err) }()
+	db, err := database.HandleConn()
+	if err != nil {
+		return e.Wrap("failed to connect to database", err)
+	}
+	defer db.Close()
+
 	sendMsg := NewMessageSendler(chatID, proces.tg)
 	messageInfo := &storage.Message{
 		Content: message,
 		UserID:  chatID,
 	}
+
 	isExists, err := proces.storage.IsExist(messageInfo, db)
 	if err != nil {
-		return err
+		return e.Wrap("failed to check message existence", err)
 	}
 	if isExists {
 		return sendMsg(msgAlreadyExists)
 	}
+
 	if err := proces.storage.Save(messageInfo, db); err != nil {
-		return err
+		return e.Wrap("failed to save message", err)
 	}
-	if err := proces.tg.SendMessage(chatID, msgSaved); err != nil {
-		return err
-	}
-	return nil
+
+	return sendMsg(msgSaved)
 }
 
-func (proces *Processor) sendRandom(chatID int) (err error) {
-	defer func() { err = e.WrapIfError("Impossible to execute random command: fail to send random ", err) }()
-	db := database.HadleConn(database.ConnStr)
-	defer func(db *sql.DB) {
-		_ = db.Close()
-	}(db)
+func (proces *Processor) sendRandom(chatID int) error {
+	db, err := database.HandleConn()
+	if err != nil {
+		return e.Wrap("failed to connect to database", err)
+	}
+	defer db.Close()
+
 	message, err := proces.storage.PickRandom(chatID, db)
-	if err != nil && !errors.Is(err, storage.ErrNoSavedMessages) {
-		return err
+	if err != nil {
+		if errors.Is(err, storage.ErrNoSavedMessages) {
+			return proces.tg.SendMessage(chatID, msgNoSavedMessage)
+		}
+		return e.Wrap("failed to pick random message", err)
 	}
-	if errors.Is(err, storage.ErrNoSavedMessages) {
-		return proces.tg.SendMessage(chatID, msgNoSavedMessage)
-	}
+
 	if err := proces.tg.SendMessage(chatID, message.Message.Content); err != nil {
-		return err
+		return e.Wrap("failed to send message", err)
 	}
-	return proces.storage.Remove(message.Index, db)
+
+	if err := proces.storage.Remove(message.Index, db); err != nil {
+		return e.Wrap("failed to remove message", err)
+	}
+
+	return nil
 }
 
 func (proces *Processor) sendHelp(chatID int) error {
