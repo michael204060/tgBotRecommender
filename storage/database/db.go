@@ -27,10 +27,12 @@ func (stor Storage) PickRandom(chatId int, db *sql.DB) (message *storage.Dialogs
 			log.Printf("couldn't rollback transaction: %s", err)
 		}
 	}(tx)
-	var index int64
+	var id int64
 	var content string
-	row := db.QueryRow("SELECT index, content FROM dialogs WHERE sender = $1 ORDER BY RANDOM() LIMIT 1", chatId)
-	err = row.Scan(&index, &content)
+	var priority int
+	var flag int
+	row := db.QueryRow("SELECT id, content, priority, flag FROM messages WHERE user_id = $1 ORDER BY RANDOM() LIMIT 1", chatId)
+	err = row.Scan(&id, &content, &priority, &flag)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, storage.ErrNoSavedMessages
@@ -38,10 +40,12 @@ func (stor Storage) PickRandom(chatId int, db *sql.DB) (message *storage.Dialogs
 		return nil, e.Wrap("couldn't read the message", err)
 	}
 	return &storage.Dialogs{
-		Index: int(index),
+		Index: int(id),
 		Message: storage.Message{
-			Content: content,
-			UserID:  chatId,
+			Content:  content,
+			UserID:   chatId,
+			Priority: priority,
+			Flag:     flag,
 		},
 	}, tx.Commit()
 }
@@ -74,7 +78,6 @@ func HandleConn() (*sql.DB, error) {
 			continue
 		}
 
-		// Используем встроенный SQL
 		if _, err := db.Exec(initSQL); err != nil {
 			db.Close()
 			return nil, fmt.Errorf("failed to create table: %v", err)
@@ -89,17 +92,34 @@ func HandleConn() (*sql.DB, error) {
 	return nil, fmt.Errorf("failed to connect to database after %d attempts", maxAttempts)
 }
 
+func (stor Storage) SaveUser(message *storage.Message, db *sql.DB) error {
+	if message == nil {
+		return errors.New("message is nil")
+	}
+	var maxId int64
+	err := db.QueryRow("select coalesce(max(id), 0) from users").Scan(&maxId)
+	if err != nil {
+		return e.Wrap("couldn't get the max id", err)
+	}
+	maxId = maxId + 1
+	_, err = db.Exec("insert into users (id, sender) values ($1)", maxId, message.UserID)
+	if err != nil {
+		return e.Wrap("couldn't save user", err)
+	}
+	return nil
+}
+
 func (stor Storage) Save(message *storage.Message, db *sql.DB) error {
 	if message == nil {
 		return errors.New("message is nil")
 	}
 	var maxId int64
-	err := db.QueryRow("select coalesce(max(index), 0) from dialogs").Scan(&maxId)
+	err := db.QueryRow("select coalesce(max(id), 0) from messages").Scan(&maxId)
 	if err != nil {
 		return e.Wrap("couldn't get the max id", err)
 	}
 	maxId = maxId + 1
-	_, err = db.Exec("insert into dialogs (index, content, sender) values ($1, $2, $3)", maxId, message.Content, message.UserID)
+	_, err = db.Exec("insert into messages (id, content, user_id) values ($1, $2, $3)", maxId, message.Content, message.UserID)
 	if err != nil {
 		return e.Wrap("couldn't save the message", err)
 	}
@@ -117,12 +137,31 @@ func (stor Storage) IsExist(message *storage.Message, db *sql.DB) (bool, error) 
 			log.Printf("couldn't rollback transaction: %s", err)
 		}
 	}(tx)
-	var isEixist bool
-	err = tx.QueryRow("select exists(select 1 from dialogs where content = $1)", message.Content).Scan(&isEixist)
+	var isExist bool
+	err = tx.QueryRow("select exists(select 1 from messages where content = $1)", message.Content).Scan(&isExist)
 	if err != nil {
 		return false, e.Wrap("couldn't query the message", err)
 	}
-	return isEixist, tx.Commit()
+	return isExist, tx.Commit()
+}
+
+func (stor Storage) IsUserNotExist(message *storage.Message, db *sql.DB) (bool, error) {
+	tx, err := db.Begin()
+	if err != nil {
+		return false, e.Wrap("couldn't begin the transaction", err)
+	}
+	defer func(tx *sql.Tx) {
+		err := tx.Rollback()
+		if err != nil {
+			log.Printf("couldn't rollback transaction: %s", err)
+		}
+	}(tx)
+	var isExist bool
+	err = tx.QueryRow("select exists(select 1 from users where sender = $1)", message.UserID).Scan(&isExist)
+	if err != nil {
+		return true, e.Wrap("couldn't query the message", err)
+	}
+	return false, tx.Commit()
 }
 
 func (stor Storage) Remove(index int, db *sql.DB) error {
@@ -136,20 +175,48 @@ func (stor Storage) Remove(index int, db *sql.DB) error {
 		}
 	}(tx)
 	var isExist bool
-	err = tx.QueryRow("select exists(select 1 from dialogs where index = $1)", index).Scan(&isExist)
+	err = tx.QueryRow("select exists(select 1 from messages where id = $1)", index).Scan(&isExist)
 	if err != nil {
 		return e.Wrap("the row does not exist", err)
 	}
 	if !isExist {
 		return fmt.Errorf("index %d does not exist\n", index)
 	}
-	_, err = tx.Exec("delete from dialogs where index = $1", index)
+	_, err = tx.Exec("delete from messages where id = $1", index)
 	if err != nil {
 		return e.Wrap("removing is impossible", err)
 	}
-	_, err = tx.Exec("update dialogs set index = index - 1 where index > $1", index)
+	_, err = tx.Exec("update messages set id = id - 1 where id > $1", index)
 	if err != nil {
 		return e.Wrap("something wrong in updating indexes", err)
+	}
+	return tx.Commit()
+}
+
+func (stor Storage) RemoveUser(index int, db *sql.DB) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return e.Wrap("could not begin transaction", err)
+	}
+	defer func(tx *sql.Tx) {
+		if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+			log.Printf("rollback failed: %v", err)
+		}
+	}(tx)
+	var isExist bool
+	err = tx.QueryRow("select exists(select 1 from messages where id = $1)", index).Scan(&isExist)
+	if err != nil {
+		return e.Wrap("the row does not exist", err)
+	}
+	if !isExist {
+		_, err = tx.Exec("delete from users where id = $1", index)
+		if err != nil {
+			return e.Wrap("removing is impossible", err)
+		}
+		_, err = tx.Exec("update users set id = id - 1 where id > $1", index)
+		if err != nil {
+			return e.Wrap("something wrong in updating indexes", err)
+		}
 	}
 	return tx.Commit()
 }

@@ -25,7 +25,6 @@ func (proces *Processor) doCmd(text string, chatID int) (error, int) {
 
 	switch text {
 	case RndCmd:
-
 		return proces.sendRandom(chatID), result
 	case HelpCmd:
 		return proces.sendHelp(chatID), result
@@ -87,6 +86,15 @@ func (proces *Processor) saveMessage(chatID int, message string) (err error) {
 	if isExists {
 		return sendMsg(msgAlreadyExists)
 	}
+	isUserNotExists, err := proces.storage.IsUserNotExist(messageInfo, db)
+	if err != nil {
+		return e.Wrap("failed to check user's existence", err)
+	}
+	if isUserNotExists {
+		if err = proces.storage.Save(messageInfo, db); err != nil {
+			return e.Wrap("failed to save user", err)
+		}
+	}
 
 	if err := proces.storage.Save(messageInfo, db); err != nil {
 		return e.Wrap("failed to save message", err)
@@ -105,6 +113,9 @@ func (proces *Processor) sendRandom(chatID int) error {
 	message, err := proces.storage.PickRandom(chatID, db)
 	if err != nil {
 		if errors.Is(err, storage.ErrNoSavedMessages) {
+			if err := proces.storage.RemoveUser(message.Index, db); err != nil {
+				return e.Wrap("failed to remove user", err)
+			}
 			return proces.tg.SendMessage(chatID, msgNoSavedMessage)
 		}
 		return e.Wrap("failed to pick random message", err)
