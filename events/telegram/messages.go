@@ -1,16 +1,14 @@
 package telegram
 
-const msgHelp = `Ja mahu zahoŭvać vašyja pavedamlieńni. Hetaksama ja mahu prapanoŭvać ich pračytać.
-Dzela taho, kab zachavać infarmacyju, prosta dašlice jaje.
-Kab atrymać paviedamlieńne, vybierycie kamandu /rnd.
-Paślia hetaha vam prapanujecca mahčymaść vydalić paviedamlieńne.`
-const msgHello = "Vitaju, 🥸\n\n" + msgHelp
+const msgHelp = `Я могу сохранять ваши сообщения с приоритетами. 
+Чтобы сохранить сообщение, просто отправьте его, а затем укажите уникальный приоритет (число).
+Чтобы получить сообщение с наивысшим приоритетом, используйте команду /rnd.
+После просмотра вы сможете удалить сообщение или изменить его приоритет.`
+
+const msgHello = "Привет! 👋\n\n" + msgHelp
 
 const (
-	//msgUnknownCommand = "Невядомая каманда😈"
-	msgNoSavedMessage = "Niama zachavanych paviedamlieńniaŭ🧐"
-	msgSaved          = "Zachavana👍"
-	msgSetPriority    = "Kali łaska, vyznačće pryjavytet hetaha paviepamlieńńia"
-	msgAlreadyExists  = "Heta paviepamlieńnie ŭžo zahavanaje🙂"
-	notANumber        = "Heta nia lik. Kali łaska, vybiarycie peŭny numar pryjavytetu"
+	msgNoSavedMessage = "Нет сохраненных сообщений."
+	msgSaved          = "Сообщение сохранено!"
+	msgPrioritySet    = "Приоритет установлен."
 )

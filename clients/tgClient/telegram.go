@@ -1,7 +1,9 @@
 package tgClient
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -89,4 +91,87 @@ func (client *Client) doRequest(method string, query url.Values) (data []byte, e
 		return nil, err
 	}
 	return body, err
+}
+
+func (client *Client) SendMessageWithKeyboard(chatID int, text string, keyboard [][]string) error {
+	buttons := make([][]map[string]interface{}, len(keyboard))
+	for i, row := range keyboard {
+		buttons[i] = make([]map[string]interface{}, len(row))
+		for j, btn := range row {
+			buttons[i][j] = map[string]interface{}{
+				"text": btn,
+			}
+		}
+	}
+
+	data := map[string]interface{}{
+		"chat_id": chatID,
+		"text":    text,
+		"reply_markup": map[string]interface{}{
+			"keyboard":          buttons,
+			"resize_keyboard":   true,
+			"one_time_keyboard": true,
+		},
+	}
+
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.Post(
+		fmt.Sprintf("https://%s/%s/sendMessage", client.host, client.basePath),
+		"application/json",
+		bytes.NewBuffer(jsonData),
+	)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status: %s", resp.Status)
+	}
+
+	return nil
+}
+
+func (client *Client) SendInlineKeyboard(chatID int, text string, buttons []InlineButton) error {
+	keyboard := make([][]map[string]interface{}, len(buttons))
+	for i, btn := range buttons {
+		keyboard[i] = []map[string]interface{}{{
+			"text":          btn.Text,
+			"callback_data": btn.Data,
+		}}
+	}
+
+	data := map[string]interface{}{
+		"chat_id": chatID,
+		"text":    text,
+		"reply_markup": map[string]interface{}{
+			"inline_keyboard": keyboard,
+		},
+	}
+
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.Post(
+		fmt.Sprintf("https://%s/%s/sendMessage", client.host, client.basePath),
+		"application/json",
+		bytes.NewBuffer(jsonData),
+	)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	return nil
+}
+
+type InlineButton struct {
+	Text string
+	Data string
 }

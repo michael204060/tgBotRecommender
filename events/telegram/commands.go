@@ -2,15 +2,23 @@ package telegram
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
 	"tgBotRecommender/clients/tgClient"
-	"tgBotRecommender/events"
 	"tgBotRecommender/lib/e"
 	"tgBotRecommender/storage"
 	"tgBotRecommender/storage/database"
 )
+
+type UserState struct {
+	WaitingForPriority bool
+	CurrentMessage     string
+	CurrentPriority    int
+}
+
+var userStates = make(map[int]*UserState)
 
 const (
 	RndCmd   = "/rnd"
@@ -18,130 +26,171 @@ const (
 	StartCmd = "/start"
 )
 
-func (proces *Processor) doCmd(text string, chatID int) (error, int) {
+const (
+	DeleteAction = "delete"
+	KeepAction   = "keep"
+	LowerAction  = "lower"
+	DeletePrefix = "delete_"
+	KeepPrefix   = "keep_"
+	LowerPrefix  = "lower_"
+)
+
+func (p *Processor) doCmd(text string, chatID int, userID int) error {
 	text = strings.TrimSpace(text)
 	log.Printf("got command: %s from %d", text, chatID)
-	result := events.Command
+
+	if state, exists := userStates[userID]; exists && state.WaitingForPriority {
+		return p.handlePriorityInput(text, userID, chatID)
+	}
 
 	switch text {
 	case RndCmd:
-		return proces.sendRandom(chatID), result
+		return p.sendHighestPriorityMessage(chatID, userID)
 	case HelpCmd:
-		return proces.sendHelp(chatID), result
+		return p.sendHelp(chatID)
 	case StartCmd:
-		return proces.sendHello(chatID), result
+		return p.sendHello(chatID)
 	default:
-		{
-			result = events.Content
-			err := proces.saveMessage(chatID, text)
-			if err != nil {
-				return err, result
-			}
+		userStates[userID] = &UserState{
+			WaitingForPriority: true,
+			CurrentMessage:     text,
 		}
+		return p.tg.SendMessage(chatID, "Пожалуйста, укажите приоритет этого сообщения (уникальное положительное число):")
 	}
-	return nil, result
 }
 
-func (proces *Processor) setPriority(text string, chatID int) (err error) {
-	if err := proces.tg.SendMessage(chatID, msgSetPriority); err != nil {
-		return err
-	}
-	text = strings.TrimSpace(text)
-	log.Printf("got number: %s from %d", text, chatID)
-	var priorityOrder []int
-	number, err := strconv.Atoi(text)
-	if err != nil {
-		return e.Wrap(notANumber, err)
-	}
-	priorityOrder = append(priorityOrder, number)
-	//if err := proces.tg.SendMessage(chatID, strconv.Itoa(number)); err != nil {
-	//	return err
-	//}
-
-	//for _, value := range priorityOrder {
-	//	if err := proces.tg.SendMessage(chatID, strconv.Itoa(value)); err != nil {
-	//		return err
-	//	}
-	//}
-	return nil
+func (p *Processor) sendHelp(chatID int) error {
+	return p.tg.SendMessage(chatID, `Я могу сохранять ваши сообщения с приоритетами.
+Чтобы сохранить сообщение, просто отправьте его, а затем укажите уникальный приоритет (число).
+Чтобы получить сообщение с наивысшим приоритетом, используйте команду /rnd.
+После просмотра вы сможете удалить сообщение или изменить его приоритет.`)
 }
 
-func (proces *Processor) saveMessage(chatID int, message string) (err error) {
+func (p *Processor) sendHello(chatID int) error {
+	return p.tg.SendMessage(chatID, "Привет! 👋\n\n"+`Я могу сохранять ваши сообщения с приоритетами.
+Чтобы сохранить сообщение, просто отправьте его, а затем укажите уникальный приоритет (число).
+Чтобы получить сообщение с наивысшим приоритетом, используйте команду /rnd.
+После просмотра вы сможете удалить сообщение или изменить его приоритет.`)
+}
+
+func (p *Processor) handlePriorityInput(text string, userID int, chatID int) error {
+	priority, err := strconv.Atoi(text)
+	if err != nil || priority <= 0 {
+		return p.tg.SendMessage(chatID, "Неверный формат приоритета. Введите положительное целое число:")
+	}
+
+	state := userStates[userID]
+	delete(userStates, userID)
+
 	db, err := database.HandleConn()
 	if err != nil {
 		return e.Wrap("failed to connect to database", err)
 	}
 	defer db.Close()
 
-	sendMsg := NewMessageSendler(chatID, proces.tg)
-	messageInfo := &storage.Message{
-		Content: message,
-		UserID:  chatID,
+	exists, err := p.storage.IsPriorityExists(userID, priority, db)
+	if err != nil {
+		return e.Wrap("failed to check priority", err)
+	}
+	if exists {
+		p.tg.SendMessage(chatID, fmt.Sprintf("Приоритет %d уже существует. Введите другой уникальный приоритет:", priority))
+		userStates[userID] = state
+		return nil
 	}
 
-	isExists, err := proces.storage.IsExist(messageInfo, db)
-	if err != nil {
-		return e.Wrap("failed to check message existence", err)
-	}
-	if isExists {
-		return sendMsg(msgAlreadyExists)
-	}
-	isUserNotExists, err := proces.storage.IsUserNotExist(messageInfo, db)
-	if err != nil {
-		return e.Wrap("failed to check user's existence", err)
-	}
-	if isUserNotExists {
-		if err = proces.storage.Save(messageInfo, db); err != nil {
-			return e.Wrap("failed to save user", err)
-		}
+	message := &storage.Message{
+		Content:  state.CurrentMessage,
+		UserID:   userID,
+		Priority: priority,
 	}
 
-	if err := proces.storage.Save(messageInfo, db); err != nil {
+	if err := p.storage.SaveWithPriority(message, db); err != nil {
 		return e.Wrap("failed to save message", err)
 	}
 
-	return sendMsg(msgSaved)
+	if err := p.storage.NormalizePriorities(userID, db); err != nil {
+		return e.Wrap("failed to normalize priorities", err)
+	}
+
+	return p.tg.SendMessage(chatID, fmt.Sprintf("Сообщение сохранено с приоритетом %d", priority))
 }
 
-func (proces *Processor) sendRandom(chatID int) error {
+func (p *Processor) sendHighestPriorityMessage(chatID int, userID int) error {
 	db, err := database.HandleConn()
 	if err != nil {
 		return e.Wrap("failed to connect to database", err)
 	}
 	defer db.Close()
 
-	message, err := proces.storage.PickRandom(chatID, db)
+	message, err := p.storage.PickHighestPriority(userID, db)
 	if err != nil {
 		if errors.Is(err, storage.ErrNoSavedMessages) {
-			if err := proces.storage.RemoveUser(message.Index, db); err != nil {
-				return e.Wrap("failed to remove user", err)
-			}
-			return proces.tg.SendMessage(chatID, msgNoSavedMessage)
+			return p.tg.SendMessage(chatID, "Нет сохраненных сообщений")
 		}
-		return e.Wrap("failed to pick random message", err)
+		return e.Wrap("failed to pick highest priority message", err)
 	}
 
-	if err := proces.tg.SendMessage(chatID, message.Message.Content); err != nil {
-		return e.Wrap("failed to send message", err)
+	// Создаем inline-кнопки
+	buttons := []tgClient.InlineButton{
+		{Text: "Удалить", Data: DeletePrefix + strconv.Itoa(message.Index)},
+		{Text: "Оставить", Data: KeepPrefix + strconv.Itoa(message.Index)},
 	}
 
-	if err := proces.storage.Remove(message.Index, db); err != nil {
-		return e.Wrap("failed to remove message", err)
+	msgText := fmt.Sprintf("Сообщение с наивысшим приоритетом (%d):\n\n%s", message.Message.Priority, message.Message.Content)
+	return p.tg.SendInlineKeyboard(chatID, msgText, buttons)
+}
+
+func (p *Processor) handleCallback(chatID int, userID int, callbackData string) error {
+	db, err := database.HandleConn()
+	if err != nil {
+		return e.Wrap("failed to connect to database", err)
+	}
+	defer db.Close()
+
+	var messageID int
+	var action string
+
+	switch {
+	case strings.HasPrefix(callbackData, DeletePrefix):
+		messageID, _ = strconv.Atoi(strings.TrimPrefix(callbackData, DeletePrefix))
+		action = DeleteAction
+	case strings.HasPrefix(callbackData, KeepPrefix):
+		messageID, _ = strconv.Atoi(strings.TrimPrefix(callbackData, KeepPrefix))
+		action = KeepAction
+	case strings.HasPrefix(callbackData, LowerPrefix):
+		messageID, _ = strconv.Atoi(strings.TrimPrefix(callbackData, LowerPrefix))
+		action = LowerAction
+	default:
+		return fmt.Errorf("unknown callback data: %s", callbackData)
+	}
+
+	switch action {
+	case DeleteAction:
+		if err := p.storage.RemoveByMessageID(messageID, db); err != nil {
+			return e.Wrap("failed to remove message", err)
+		}
+		if err := p.storage.NormalizePriorities(userID, db); err != nil {
+			return e.Wrap("failed to normalize priorities", err)
+		}
+		return p.tg.SendMessage(chatID, "Сообщение удалено. Приоритеты обновлены.")
+
+	case KeepAction:
+		// Предлагаем оставить или понизить приоритет
+		buttons := []tgClient.InlineButton{
+			{Text: "Оставить текущий", Data: KeepPrefix + strconv.Itoa(messageID)},
+			{Text: "Понизить приоритет", Data: LowerPrefix + strconv.Itoa(messageID)},
+		}
+		return p.tg.SendInlineKeyboard(chatID, "Выберите действие с приоритетом:", buttons)
+
+	case LowerAction:
+		if err := p.storage.LowerPriority(messageID, userID, db); err != nil {
+			return e.Wrap("failed to lower priority", err)
+		}
+		if err := p.storage.NormalizePriorities(userID, db); err != nil {
+			return e.Wrap("failed to normalize priorities", err)
+		}
+		return p.tg.SendMessage(chatID, "Приоритет понижен. Все приоритеты обновлены.")
 	}
 
 	return nil
-}
-
-func (proces *Processor) sendHelp(chatID int) error {
-	return proces.tg.SendMessage(chatID, msgHelp)
-}
-
-func (proces *Processor) sendHello(chatID int) error {
-	return proces.tg.SendMessage(chatID, msgHello)
-}
-
-func NewMessageSendler(chatID int, tg *tgClient.Client) func(string) error {
-	return func(msg string) error {
-		return tg.SendMessage(chatID, msg)
-	}
 }
