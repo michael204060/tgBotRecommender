@@ -12,6 +12,7 @@ type Storage interface {
 	NormalizePriorities(userID int, db *sql.DB) error
 	LowerPriority(messageID int, userID int, db *sql.DB) error
 	RemoveByMessageID(messageID int, db *sql.DB) error
+	HigherPriority(messageID int, userID int, db *sql.DB) error
 }
 
 var ErrNoSavedMessages = errors.New("no saved messages")

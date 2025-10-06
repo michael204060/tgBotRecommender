@@ -16,6 +16,11 @@ const (
 )
 
 func main() {
+	db, err := database.HandleConn()
+	if err != nil {
+		log.Fatal("Failed to connect to database: %v", err)
+	}
+	defer db.Close()
 	eventsProcessor := telegram.New(
 		tgClient.New(tgBotHost, mustToken()),
 
