@@ -17,3 +17,4 @@ databases:
   - name: bot-database
     databaseName: chats_f0x6
     plan: free
+

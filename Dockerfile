@@ -42,4 +42,5 @@ USER appuser
 WORKDIR /app
 
 # Команда для запуска приложения
-CMD ["/app/tgBotRecommender"]
+CMD ["
+/app/tgBotRecommender"]
