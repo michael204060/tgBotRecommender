@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 	"tgBotRecommender/storage"
 	"time"
 
@@ -18,19 +19,30 @@ type Storage struct{}
 //go:embed init.sql
 var initSQL string
 
-func HandleConn() (*sql.DB, error) {
+var (
+	db     *sql.DB
+	dbOnce sync.Once
+)
 
+func HandleConn() (*sql.DB, error) {
+	var err error
+	dbOnce.Do(func() {
+		err = initDB()
+	})
+	return db, err
+}
+
+func initDB() error {
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
-		return nil, fmt.Errorf("DATABASE_URL environment variable is required")
+		return fmt.Errorf("DATABASE_URL environment variable is required")
 	}
 
 	log.Printf("Connecting to database using DATABASE_URL")
 
-	var db *sql.DB
 	var err error
-
 	maxAttempts := 10
+
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		db, err = sql.Open("postgres", databaseURL)
 		if err != nil {
@@ -39,9 +51,9 @@ func HandleConn() (*sql.DB, error) {
 			continue
 		}
 
-		db.SetMaxOpenConns(25)
+		db.SetMaxOpenConns(10)
 		db.SetMaxIdleConns(5)
-		db.SetConnMaxLifetime(5 * time.Minute)
+		db.SetConnMaxLifetime(30 * time.Minute)
 
 		err = db.Ping()
 		if err != nil {
@@ -56,10 +68,10 @@ func HandleConn() (*sql.DB, error) {
 			log.Printf("Warning: failed to init tables: %v", err)
 		}
 
-		return db, nil
+		return nil
 	}
 
-	return nil, fmt.Errorf("failed to connect to database after %d attempts", maxAttempts)
+	return fmt.Errorf("failed to connect to database after %d attempts", maxAttempts)
 }
 
 func initTables(db *sql.DB) error {
