@@ -15,7 +15,7 @@ RUN go mod download
 COPY . .
 
 # Сборка приложения
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/tgBotRecommender
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o tgBotRecommender
 
 # Финальный образ
 FROM alpine:latest
@@ -28,6 +28,9 @@ RUN adduser -D -g '' appuser
 
 # Копирование бинарного файла из builder
 COPY --from=builder /app/tgBotRecommender /app/tgBotRecommender
+
+# Копирование SQL файлов
+COPY --from=builder /app/storage/database/init.sql /app/init.sql
 
 # Установка прав
 RUN chown -R appuser:appuser /app

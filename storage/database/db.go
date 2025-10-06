@@ -18,50 +18,30 @@ type Storage struct{}
 //go:embed init.sql
 var initSQL string
 
-type Config struct {
-	Host     string
-	Port     string
-	User     string
-	Password string
-	DBName   string
-	SSLMode  string
-}
-
-func LoadConfig() *Config {
-	return &Config{
-		Host:     getEnv("POSTGRES_HOST", "localhost"),
-		Port:     getEnv("POSTGRES_PORT", "5432"),
-		User:     getEnv("POSTGRES_USER", "postgres"),
-		Password: getEnv("POSTGRES_PASSWORD", "204060"),
-		DBName:   getEnv("POSTGRES_DB", "chats"),
-		SSLMode:  getEnv("POSTGRES_SSLMODE", "disable"),
-	}
-}
-
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
-
 func HandleConn() (*sql.DB, error) {
-	config := LoadConfig()
 
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		config.Host, config.Port, config.User, config.Password, config.DBName, config.SSLMode)
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		return nil, fmt.Errorf("DATABASE_URL environment variable is required")
+	}
+
+	log.Printf("Connecting to database using DATABASE_URL")
 
 	var db *sql.DB
 	var err error
 
-	maxAttempts := 5
+	maxAttempts := 10
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		db, err = sql.Open("postgres", connStr)
+		db, err = sql.Open("postgres", databaseURL)
 		if err != nil {
 			log.Printf("Attempt %d: failed to open database: %v", attempt, err)
 			time.Sleep(time.Duration(attempt) * time.Second)
 			continue
 		}
+
+		db.SetMaxOpenConns(25)
+		db.SetMaxIdleConns(5)
+		db.SetConnMaxLifetime(5 * time.Minute)
 
 		err = db.Ping()
 		if err != nil {
@@ -70,11 +50,25 @@ func HandleConn() (*sql.DB, error) {
 			continue
 		}
 
-		log.Printf("Successfully connected to database")
+		log.Printf("Successfully connected to database on Render")
+
+		if err := initTables(db); err != nil {
+			log.Printf("Warning: failed to init tables: %v", err)
+		}
+
 		return db, nil
 	}
 
 	return nil, fmt.Errorf("failed to connect to database after %d attempts", maxAttempts)
+}
+
+func initTables(db *sql.DB) error {
+	_, err := db.Exec(initSQL)
+	if err != nil {
+		return fmt.Errorf("failed to init tables: %w", err)
+	}
+	log.Printf("Database tables initialized successfully")
+	return nil
 }
 
 func (stor Storage) SaveWithPriority(message *storage.Message, db *sql.DB) error {
