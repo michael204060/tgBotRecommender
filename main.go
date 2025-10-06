@@ -17,12 +17,11 @@ const (
 )
 
 func main() {
-	// Инициализируем базу данных
-	db, err := database.HandleConn()
+
+	_, err := database.HandleConn()
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
-	defer db.Close()
 
 	eventsProcessor := telegram.New(
 		tgClient.New(tgBotHost, mustToken()),
@@ -31,7 +30,6 @@ func main() {
 
 	log.Print("Starting bot")
 
-	// Запускаем HTTP сервер для Render health checks
 	go startHTTPServer()
 
 	consumer := eventConsumer.NewConsumer(eventsProcessor, eventsProcessor, batchSize)
@@ -52,7 +50,6 @@ func startHTTPServer() {
 		w.Write([]byte("OK"))
 	})
 
-	// Render автоматически устанавливает PORT переменную
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
