@@ -43,7 +43,7 @@ func (p *Processor) sendHighestPriorityMessage(chatID int, userID int) error {
 	}
 	defer db.Close()
 
-	message, err := p.storage.PickHighestPriority(userID, db)
+	message, err := p.storage.PickHighestPriority(userID)
 	if err != nil {
 		if errors.Is(err, storage.ErrNoSavedMessages) {
 			return p.tg.SendMessage(chatID, msgNoSavedMessage)
@@ -90,28 +90,28 @@ func (p *Processor) handleCallback(chatID int, userID int, callbackData string) 
 
 	switch action {
 	case DeleteAction:
-		if err := p.storage.RemoveByMessageID(messageID, db); err != nil {
+		if err := p.storage.RemoveByMessageID(messageID); err != nil {
 			return e.Wrap("failed to remove message", err)
 		}
-		if err := p.storage.NormalizePriorities(userID, db); err != nil {
+		if err := p.storage.NormalizePriorities(userID); err != nil {
 			return e.Wrap("failed to normalize priorities", err)
 		}
 		return p.tg.SendMessage(chatID, "Сообщение удалено. Приоритеты обновлены.")
 
 	case LowerAction:
-		if err := p.storage.LowerPriority(messageID, userID, db); err != nil {
+		if err := p.storage.LowerPriority(messageID, userID); err != nil {
 			return e.Wrap("failed to lower priority", err)
 		}
-		if err := p.storage.NormalizePriorities(userID, db); err != nil {
+		if err := p.storage.NormalizePriorities(userID); err != nil {
 			return e.Wrap("failed to normalize priorities", err)
 		}
 		return p.tg.SendMessage(chatID, "Приоритет понижен. Все приоритеты обновлены.")
 
 	case HigherAction:
-		if err := p.storage.HigherPriority(messageID, userID, db); err != nil {
+		if err := p.storage.HigherPriority(messageID, userID); err != nil {
 			return e.Wrap("failed to higher priority", err)
 		}
-		if err := p.storage.NormalizePriorities(userID, db); err != nil {
+		if err := p.storage.NormalizePriorities(userID); err != nil {
 			return e.Wrap("failed to normalize priorities", err)
 		}
 		return p.tg.SendMessage(chatID, "Приоритет повышен. Все приоритеты обновлены.")
@@ -174,7 +174,7 @@ func (p *Processor) handlePriorityInput(text string, userID int, chatID int) err
 	}
 	defer db.Close()
 
-	exists, err := p.storage.IsPriorityExists(userID, priority, db)
+	exists, err := p.storage.IsPriorityExists(userID, priority)
 	if err != nil {
 		return e.Wrap("failed to check priority", err)
 	}
@@ -191,11 +191,11 @@ func (p *Processor) handlePriorityInput(text string, userID int, chatID int) err
 		Priority: priority,
 	}
 
-	if err := p.storage.SaveWithPriority(message, db); err != nil {
+	if err := p.storage.SaveWithPriority(message); err != nil {
 		return e.Wrap("failed to save message", err)
 	}
 
-	if err := p.storage.NormalizePriorities(userID, db); err != nil {
+	if err := p.storage.NormalizePriorities(userID); err != nil {
 		return e.Wrap("failed to normalize priorities", err)
 	}
 

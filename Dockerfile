@@ -41,6 +41,9 @@ USER appuser
 # Установка рабочей директории
 WORKDIR /app
 
+# Экспортируем порт для Render
+EXPOSE 8080
+
 # Команда для запуска приложения
 CMD ["
 /app/tgBotRecommender"]
