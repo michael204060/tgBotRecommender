@@ -1,5 +1,5 @@
 services:
-  - type: worker  
+  - type: web
     name: tg-bot-recommender
     env: docker
     dockerfilePath: Dockerfile
@@ -10,3 +10,10 @@ services:
           property: connectionString
       - key: TG_BOT_TOKEN
         sync: false
+    healthCheckPath: /health
+    numInstances: 1
+
+databases:
+  - name: bot-database
+    databaseName: chats_f0x6
+    plan: free
