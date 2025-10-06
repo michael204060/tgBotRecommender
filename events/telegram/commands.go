@@ -28,13 +28,12 @@ const (
 
 const (
 	DeleteAction = "delete"
-	KeepAction   = "keep"
 	LowerAction  = "lower"
-	HigherAction = "higher" // Добавляем действие повышения приоритета
+	HigherAction = "higher"
 	DeletePrefix = "delete_"
 	KeepPrefix   = "keep_"
 	LowerPrefix  = "lower_"
-	HigherPrefix = "higher_" // Добавляем префикс для повышения
+	HigherPrefix = "higher_"
 )
 
 func (p *Processor) sendHighestPriorityMessage(chatID int, userID int) error {
@@ -52,7 +51,6 @@ func (p *Processor) sendHighestPriorityMessage(chatID int, userID int) error {
 		return e.Wrap("failed to pick highest priority message", err)
 	}
 
-	// Создаем inline-кнопки с действиями
 	buttons := []tgClient.InlineButton{
 		{Text: "🗑️ Удалить", Data: DeletePrefix + strconv.Itoa(message.Index)},
 		{Text: "⬆️ Повысить", Data: HigherPrefix + strconv.Itoa(message.Index)},
@@ -78,7 +76,7 @@ func (p *Processor) handleCallback(chatID int, userID int, callbackData string) 
 		messageID, _ = strconv.Atoi(strings.TrimPrefix(callbackData, DeletePrefix))
 		action = DeleteAction
 	case strings.HasPrefix(callbackData, KeepPrefix):
-		// Убираем KeepAction чтобы избежать зацикливания
+
 		return p.tg.SendMessage(chatID, "Сообщение оставлено без изменений.")
 	case strings.HasPrefix(callbackData, LowerPrefix):
 		messageID, _ = strconv.Atoi(strings.TrimPrefix(callbackData, LowerPrefix))
@@ -126,7 +124,6 @@ func (p *Processor) doCmd(text string, chatID int, userID int) error {
 	text = strings.TrimSpace(text)
 	log.Printf("got command: %s from %d", text, chatID)
 
-	// Проверяем, ожидаем ли мы приоритет от пользователя
 	if state, exists := userStates[userID]; exists && state.WaitingForPriority {
 		return p.handlePriorityInput(text, userID, chatID)
 	}
@@ -139,7 +136,7 @@ func (p *Processor) doCmd(text string, chatID int, userID int) error {
 	case StartCmd:
 		return p.sendHello(chatID)
 	default:
-		// Сохраняем сообщение и запрашиваем приоритет
+
 		userStates[userID] = &UserState{
 			WaitingForPriority: true,
 			CurrentMessage:     text,
@@ -169,7 +166,7 @@ func (p *Processor) handlePriorityInput(text string, userID int, chatID int) err
 	}
 
 	state := userStates[userID]
-	delete(userStates, userID) // Очищаем состояние после обработки
+	delete(userStates, userID)
 
 	db, err := database.HandleConn()
 	if err != nil {
@@ -177,14 +174,13 @@ func (p *Processor) handlePriorityInput(text string, userID int, chatID int) err
 	}
 	defer db.Close()
 
-	// Проверяем, существует ли уже такой приоритет
 	exists, err := p.storage.IsPriorityExists(userID, priority, db)
 	if err != nil {
 		return e.Wrap("failed to check priority", err)
 	}
 	if exists {
 		p.tg.SendMessage(chatID, fmt.Sprintf("Приоритет %d уже существует. Введите другой уникальный приоритет:", priority))
-		// Восстанавливаем состояние для повторного ввода
+
 		userStates[userID] = state
 		return nil
 	}
@@ -199,7 +195,6 @@ func (p *Processor) handlePriorityInput(text string, userID int, chatID int) err
 		return e.Wrap("failed to save message", err)
 	}
 
-	// Нормализуем приоритеты после сохранения
 	if err := p.storage.NormalizePriorities(userID, db); err != nil {
 		return e.Wrap("failed to normalize priorities", err)
 	}

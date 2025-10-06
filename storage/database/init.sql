@@ -1,4 +1,3 @@
--- Уберите foreign key constraint или создайте таблицу users
 CREATE TABLE IF NOT EXISTS messages (
                                         id SERIAL PRIMARY KEY,
                                         content TEXT NOT NULL,

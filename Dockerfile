@@ -1,8 +1,8 @@
 # Базовый образ для сборки
-FROM golang:1.24-alpine AS builder
+FROM golang:1.21-alpine AS builder
 
 # Установка зависимостей
-RUN apk add --no-cache git
+RUN apk add --no-cache git ca-certificates
 
 # Создание рабочей директории
 WORKDIR /app
@@ -15,16 +15,25 @@ RUN go mod download
 COPY . .
 
 # Сборка приложения
-RUN CGO_ENABLED=0 GOOS=linux go build -o /app/tgBotRecommender
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/tgBotRecommender
 
 # Финальный образ
 FROM alpine:latest
 
-# Установка зависимостей для работы с PostgreSQL
-RUN apk add --no-cache libc6-compat
+# Установка зависимостей для работы
+RUN apk --no-cache add ca-certificates tzdata
+
+# Создание non-root пользователя для безопасности
+RUN adduser -D -g '' appuser
 
 # Копирование бинарного файла из builder
 COPY --from=builder /app/tgBotRecommender /app/tgBotRecommender
+
+# Установка прав
+RUN chown -R appuser:appuser /app
+
+# Переключение на non-root пользователя
+USER appuser
 
 # Установка рабочей директории
 WORKDIR /app

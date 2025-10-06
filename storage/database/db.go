@@ -152,7 +152,6 @@ func (stor Storage) RemoveByMessageID(messageID int, db *sql.DB) error {
 }
 
 func (stor Storage) HigherPriority(messageID int, userID int, db *sql.DB) error {
-	// Устанавливаем приоритет в 0 (самый высокий), затем нормализуем
 	_, err := db.Exec(`
         UPDATE messages 
         SET priority = 0

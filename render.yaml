@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: tg-bot-recommender
+    env: docker
+    docker:
+      dockerfile: Dockerfile
+    envVars:
+      - key: TG_BOT_TOKEN
+        fromService:
+          type: secret
+      - key: DATABASE_URL
+        fromService:
+          type: postgres
+          name: bot-database
+          property: connectionString
+    healthCheckPath: /
+    numInstances: 1
+
+databases:
+  - name: bot-database
+    databaseName: chats_f0x6
+    user: chats_f0x6_user
+    plan: free
